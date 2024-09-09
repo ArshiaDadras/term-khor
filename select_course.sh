@@ -9,10 +9,12 @@
 #
 # Options:
 #   -t <token>       Your authentication token.
+#   -i <student_id>  Your student ID for authentication.
+#   -p <password>    Your password for authentication.
 #   -c <courses>     Comma-separated list of course codes.
 #   -u <units>       Comma-separated list of units corresponding to the courses.
 #   -s <start_time>  Start time for the course selection in HH:MM format (default: 08:00).
-#   -e <end_time>    End time for the course selection in HH:MM format (optional).
+#   -e <end_time>    End time for the course selection in HH:MM format (default: 00:00).
 #
 # Notes:
 #   - The script requires GNU date and cURL to be installed.
@@ -23,8 +25,13 @@
 
 # Function to display usage information
 usage() {
-    echo "Usage: $0 -t <token> -c <course1,course2,...> -u <unit1,unit2,...> [-s <start_time>] [-e <end_time>]"
-    echo "  -t <token>                  JWT token for authentication (required)."
+    echo "Usages:"
+    echo "  $0 -t <token> -c <course1,course2,...> -u <unit1,unit2,...> [-s <start_time>] [-e <end_time>]"
+    echo "  $0 -i <student_id> -p <password> -c <course1,course2,...> -u <unit1,unit2,...> [-s <start_time>] [-e <end_time>]"
+    echo "Options:"
+    echo "  -t <token>                  JWT token for authentication (required without: student_id)."
+    echo "  -i <student_id>             Student ID for authentication (required without: token)."
+    echo "  -p <password>               Password for authentication (required without: token)."
     echo "  -c <course1,course2,...>    Comma separated list of \`courseID-groupID\`s (required). Example: -c 40455-1,40103-2"
     echo "  -u <unit1,unit2,...>        Comma separated list of unit for each course (required). Example: -u 3,1"
     echo "  -s <start_time>             Start time of the course selection in the format of \`HH:MM\` (default: 08:00). Example: -s 08:00"
@@ -45,9 +52,11 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 # Parse command-line arguments
-while getopts ":t:c:u:s:e:" opt; do
+while getopts ":t:i:p:c:u:s:e:" opt; do
     case $opt in
         t) token=$OPTARG ;;
+        i) student_id=$OPTARG ;;
+        p) password=$OPTARG ;;
         c) courses=(${OPTARG//,/ }) ;;
         u) units=(${OPTARG//,/ }) ;;
         s) start_time=$OPTARG ;;
@@ -58,6 +67,15 @@ while getopts ":t:c:u:s:e:" opt; do
 done
 
 # Validate required arguments
+if [ -n "$student_id" ] && [ -n "$password" ]; then
+    echo -e "\033[0;36m`gdate +%H:%M:%S.%3N`: Authenticating with the provided student ID and password...\033[0m"
+    token=$(python3 token_finder/main.py $student_id $password 2>/dev/null)
+
+    if [ $? -ne 0 ]; then
+        echo -e "\033[0;31mError: Failed to authenticate with the provided student ID and password\033[0m"
+        exit 1
+    fi
+fi
 if [ -z "$token" ] || [ -z "$courses" ] || [ ${#courses[@]} -ne ${#units[@]} ]; then
     echo -e "\033[0;31mError: Invalid arguments\033[0m"
     usage
@@ -87,8 +105,33 @@ echo -e "\033[0;36m  - End Time:    $end_time\033[0m"
 
 # Function to wait until the specified (adjusted) start time
 wait_until_start() {
-    while [[ $(gdate -d "now + 1 second" +%H:%M) != $start_time ]]; do
+    if [ $(gdate +%H:%M) < $start_time ]; then
+        start_timestamp=$(gdate -d "today $start_time" +%s)
+    else
+        start_timestamp=$(gdate -d "tomorrow $start_time" +%s)
+    fi
+    update_timestamp=$((start_timestamp-300))
+
+    if [ -z "$student_id" ] || [ -z "$password" ] || [ $(gdate +%s) -ge $update_timestamp ]; then
+        up_to_date=true
+    else
+        up_to_date=false
+    fi
+
+    while [ $(gdate -d "now + 1 second" +%H:%M) != $start_time ]; do
         echo -e "\033[0;90m`gdate +%H:%M:%S.%3N`: Waiting for the course selection to start at $start_time...\033[0m"
+
+        if [ $up_to_date = false ] && [ $(gdate +%s) -ge $update_timestamp ]; then
+            echo -e "\033[0;36m`gdate +%H:%M:%S.%3N`: Updating the login token...\033[0m"
+            token=$(python3 token_finder/main.py $student_id $password 2>/dev/null)
+
+            if [ $? -ne 0 ]; then
+                echo -e "\033[0;31mError: Failed to authenticate with the provided student ID and password\033[0m"
+                exit 1
+            fi
+            up_to_date=true
+        fi
+
         sleep 1
     done
 }
@@ -117,14 +160,14 @@ main() {
     echo -e "\033[0;36m`gdate +%H:%M:%S.%3N`: Course selection script started.\033[0m"
     wait_until_start
 
-    while [[ $(gdate +%H:%M) != $end_time ]]; do
+    while [ $(gdate +%H:%M) != $end_time ]; do
         counter=$((counter+1))
         attempt_registration &
         sleep 0.05
     done
 
     echo -e "\033[0;36m`gdate +%H:%M:%S.%3N`: Waiting for the last registration attempt to complete...\033[0m"
-    while [[ $(jobs -r) ]]; do
+    while [ $(jobs -r) ]; do
         sleep 1
     done
     echo -e "\033[0;36m`gdate +%H:%M:%S.%3N`: Course selection script completed.\033[0m"
