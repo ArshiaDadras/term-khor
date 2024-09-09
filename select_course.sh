@@ -66,6 +66,20 @@ while getopts ":t:i:p:c:u:s:e:" opt; do
     esac
 done
 
+# Check if required tools are installed
+if ! command -v gdate &> /dev/null; then
+    echo -e "\033[0;33mError: GNU date is required to run this script\033[0m"
+    exit 1
+fi
+if ! command -v curl &> /dev/null; then
+    echo -e "\033[0;33mError: cURL is required to run this script\033[0m"
+    exit 1
+fi
+if ! command -v python3 &> /dev/null; then
+    echo -e "\033[0;33mError: Python 3 is required to run this script\033[0m"
+    exit 1
+fi
+
 # Validate required arguments
 if [ -n "$student_id" ] && [ -n "$password" ]; then
     echo -e "\033[0;36m`gdate +%H:%M:%S.%3N`: Authenticating with the provided student ID and password...\033[0m"
@@ -79,16 +93,6 @@ fi
 if [ -z "$token" ] || [ -z "$courses" ] || [ ${#courses[@]} -ne ${#units[@]} ]; then
     echo -e "\033[0;31mError: Invalid arguments\033[0m"
     usage
-fi
-
-# Check if required tools are installed
-if ! command -v gdate &> /dev/null; then
-    echo -e "\033[0;33mError: GNU date is required to run this script\033[0m"
-    exit 1
-fi
-if ! command -v curl &> /dev/null; then
-    echo -e "\033[0;33mError: cURL is required to run this script\033[0m"
-    exit 1
 fi
 
 # Set default values for optional arguments

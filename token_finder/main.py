@@ -9,7 +9,7 @@ from captcha_solver import CaptchaSolver
 
 def setup_chrome_driver(headless=True):
     """
-    Setup a headless Chrome WebDriver
+    Setup a Chrome WebDriver with the given options
 
     Parameters:
     - headless (bool): Whether to run the WebDriver in headless mode
@@ -20,11 +20,11 @@ def setup_chrome_driver(headless=True):
     options = Options()
     if headless:
         options.add_argument('--headless')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--start-maximized')
-        options.add_argument('--disable-blink-features=AutomationControlled')
-        options.add_experimental_option('useAutomationExtension', False)
-        options.add_experimental_option('excludeSwitches', ['enable-automation', 'enable-logging'])
+    options.add_argument('--no-sandbox')
+    options.add_argument('--start-maximized')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_experimental_option('useAutomationExtension', False)
+    options.add_experimental_option('excludeSwitches', ['enable-automation', 'enable-logging'])
     return webdriver.Chrome(options=options)
 
 def wait_for_element(driver, by, value, timeout=10):
@@ -77,7 +77,7 @@ def get_token(driver):
 
 def main():
     """
-    Main function to run the script and get the JWT token
+    Main function to run the login script and retrieve JWT token
 
     Usage:
     - python main.py <sid> <password> [no-headless]
@@ -93,12 +93,14 @@ def main():
     headless = len(sys.argv) < 4 or sys.argv[3] != 'no-headless'
 
     captcha_solver, driver = CaptchaSolver(), setup_chrome_driver(headless)
-    if not attempt_login(driver, sid, password, captcha_solver):
-        print('\033[91mFailed to login\033[0m')
-        sys.exit(1)
+    try:
+        if not attempt_login(driver, sid, password, captcha_solver):
+            print('\033[91mFailed to login\033[0m')
+            sys.exit(1)
 
-    print(get_token(driver))
-    driver.quit()
+        print(get_token(driver))
+    finally:
+        driver.quit()
 
 
 if __name__ == '__main__':
