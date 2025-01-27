@@ -170,7 +170,7 @@ main() {
         sleep 0.05
     done
 
-    echo -e "\033[0;36m`gdate +%H:%M:%S.%3N`: Waiting for the last registration attempt to complete...\033[0m"
+    echo -e "\033[0;36m`gdate +%H:%M:%S.%3N`: Waiting for the registration attempts to complete...\033[0m"
     while [[ $(jobs -r) ]]; do
         sleep 1
     done
