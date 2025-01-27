@@ -109,14 +109,14 @@ echo -e "\033[0;36m  - End Time:    $end_time\033[0m"
 
 # Function to wait until the specified (adjusted) start time
 wait_until_start() {
-    if [ $(gdate +%H:%M) < $start_time ]; then
+    if [[ $(gdate +%H:%M) < $start_time ]]; then
         start_timestamp=$(gdate -d "today $start_time" +%s)
     else
         start_timestamp=$(gdate -d "tomorrow $start_time" +%s)
     fi
     update_timestamp=$((start_timestamp-300))
 
-    if [ -z "$student_id" ] || [ -z "$password" ] || [ $(gdate +%s) -ge $update_timestamp ]; then
+    if [ -z "$student_id" ] || [ -z "$password" ] || [[ $(gdate +%s) -ge $update_timestamp ]]; then
         up_to_date=true
     else
         up_to_date=false
@@ -125,7 +125,7 @@ wait_until_start() {
     while [ $(gdate -d "now + 1 second" +%H:%M) != $start_time ]; do
         echo -e "\033[0;90m`gdate +%H:%M:%S.%3N`: Waiting for the course selection to start at $start_time...\033[0m"
 
-        if [ $up_to_date = false ] && [ $(gdate +%s) -ge $update_timestamp ]; then
+        if [ $up_to_date = false ] && [[ $(gdate +%s) -ge $update_timestamp ]]; then
             echo -e "\033[0;36m`gdate +%H:%M:%S.%3N`: Updating the login token...\033[0m"
             token=$(python3 token_finder/main.py $student_id $password 2>/dev/null)
 
@@ -171,7 +171,7 @@ main() {
     done
 
     echo -e "\033[0;36m`gdate +%H:%M:%S.%3N`: Waiting for the last registration attempt to complete...\033[0m"
-    while [ $(jobs -r) ]; do
+    while [[ $(jobs -r) ]]; do
         sleep 1
     done
     echo -e "\033[0;36m`gdate +%H:%M:%S.%3N`: Course selection script completed.\033[0m"
